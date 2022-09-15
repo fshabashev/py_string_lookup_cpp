@@ -20,7 +20,7 @@ setup(
     version=__version__,
     author="Fedor Shabashev",
     author_email="fedor.shabashev@gmail.com",
-    url="https://github.com/pybind/python_example",
+    url="https://github.com/fshabashev/py_string_lookup_cpp",
     description="Low memory string lookup",
     long_description="",
     ext_modules=ext_modules,
