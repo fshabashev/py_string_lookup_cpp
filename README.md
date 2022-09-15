@@ -1,4 +1,4 @@
-python_example
+Python memory-efficient strings lookup
 ==============
 
 
