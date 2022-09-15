@@ -9,6 +9,12 @@ Installation
  - `python3 setup.py build`
 
 
+To release
+-----------
+
+```python3 setup.py bdist_wheel ```
+```twine upload -r testpypi dist/* ```
+
 License
 -------
 
