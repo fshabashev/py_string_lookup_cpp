@@ -5,7 +5,7 @@ from pybind11 import get_cmake_dir
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import setup
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 ext_modules = [
     Pybind11Extension("cpp_string_lookup",
@@ -16,7 +16,7 @@ ext_modules = [
 ]
 
 setup(
-    name="cpp_string_lookup",
+    name="cpp_string_low_mem_lookup",
     version=__version__,
     author="Fedor Shabashev",
     author_email="fedor.shabashev@gmail.com",
