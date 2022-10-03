@@ -4,12 +4,14 @@ from pybind11 import get_cmake_dir
 # Available at setup time due to pyproject.toml
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import setup
+from glob import glob
+
 
 __version__ = "0.0.5"
 
 ext_modules = [
     Pybind11Extension("cpp_string_lookup",
-        ["src/main.cpp"],
+        ["src/main.cpp"] + sorted(glob("src/arithmetic_coding/*.cpp")),
         # Example: passing in the version to the compiled code
         define_macros = [('VERSION_INFO', __version__)],
         ),

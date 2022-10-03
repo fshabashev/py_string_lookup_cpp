@@ -3,6 +3,9 @@
 #include <vector>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include "arithmetic_coding/encode.h"
+#include "arithmetic_coding/decode.h"
+
 
 
 double pi_integral() {
@@ -157,6 +160,47 @@ public:
     }
 };
 
+class CharFrequencyHolder {
+public:
+    std::map<std::string, unsigned long> freq_array;
+
+    CharFrequencyHolder() {
+        this->freq_array = std::map<std::string, unsigned long>();
+    }
+
+    void incrementFreq(std::string str){
+        for (int i = 0; i < str.length(); i++){
+            if (freq_array.find(str.substr(i, 1)) == freq_array.end()){
+                freq_array[str.substr(i, 1)] = 1;
+            }
+            else {
+                freq_array[str.substr(i, 1)] += 1;
+            }
+        }
+    }
+
+    void printFreq(){
+        for (auto it = freq_array.begin(); it != freq_array.end(); it++){
+            std::cout << it->first << " " << it->second << std::endl;
+        }
+    }
+};
+
+class StringFrequencyHolder {
+public:
+    std::map<std::string, unsigned long> freq_array;
+    
+    StringFrequencyHolder(CharFrequencyHolder encoding){
+        unsigned long sum = 0;
+        for (auto it = encoding.freq_array.begin(); it != encoding.freq_array.end(); it++){
+            sum += it->second;
+            freq_array[it->first] = sum;
+        }
+    }
+};
+
+
+
 class StringHolder {
 public:
     std::vector<std::string> string_storage;
@@ -219,9 +263,15 @@ float some_fn (float arg1, float arg2) {
     return arg1 + arg2;
 }
 
+void test_fun(void){
+    	Encode obj;
+		obj.encode("test_file_input.txt", "test_file_output.bin.txt");
+}
+
 PYBIND11_MODULE(cpp_string_lookup, m) {
     m.doc() = "pybind11 example plugin"; // optional module docstring
     m.def("some_fn", &some_fn, "A function which adds two numbers");
+    m.def("test_fun", &test_fun, "A function which runs arithmetic encoding");
     py::class_<StringHolder>(m, "StringHolder")
         .def(py::init< std::vector<std::string> >())
         .def(py::init< StringAccumulator >())
@@ -235,5 +285,10 @@ PYBIND11_MODULE(cpp_string_lookup, m) {
         .def(py::init<long>())
         .def("add", &StringAccumulator::add)
         .def("clean", &StringAccumulator::clean);
+    py::class_<CharFrequencyHolder>(m, "CharFrequencyHolder")
+        .def(py::init<>())
+        .def("incrementFreq", &CharFrequencyHolder::incrementFreq)
+        .def("printFreq", &CharFrequencyHolder::printFreq);
+
 }
 
