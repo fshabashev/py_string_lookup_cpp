@@ -264,8 +264,8 @@ float some_fn (float arg1, float arg2) {
 }
 
 void test_fun(void){
-    	Encode obj;
-		obj.encode("test_file_input.txt", "test_file_output.bin.txt");
+    Encode obj;
+    obj.encode("test_file_input.txt", "test_file_output.bin.txt");
 }
 
 PYBIND11_MODULE(cpp_string_lookup, m) {
