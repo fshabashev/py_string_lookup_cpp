@@ -15,6 +15,25 @@ Encode::~Encode(void)
 {
 }
 
+void Encode::encode_streams(void){
+    while (true)
+    {
+        int ch;
+        int symbol;
+        ch = in.get();
+        if (in.eof())
+        {
+            cout<<"Encoding is done"<<endl;
+            break;
+        }
+        symbol = char_to_index[ch];
+        encode_symbol(symbol);
+        update_tables(symbol);
+    }
+    encode_symbol(EOF_SYMBOL);
+    end_encoding();
+}
+
 void Encode::encode(char *infile, char *outfile)
 {
 	in.open(infile, ios::binary | ios::in);
@@ -24,22 +43,7 @@ void Encode::encode(char *infile, char *outfile)
 		cout<<"Error: Can`t open file"<<endl;
 		return;
 	}
-	while (true)
-	{
-		int ch;
-		int symbol;
-		ch = in.get();
-		if (in.eof())
-		{
-			cout<<"Encoding is done"<<endl;
-			break;
-		}
-		symbol = char_to_index[ch];
-		encode_symbol(symbol);
-		update_tables(symbol);
-	}
-	encode_symbol(EOF_SYMBOL);
-	end_encoding();
+    encode_streams();
 	in.close();
 	out.close();
 }

@@ -22,30 +22,37 @@ void Decode::load_first_value(void)
 		value = 2 * value + get_bit();
 }
 
+void Decode::decode_streams(void){
+    load_first_value();
+    while (true)
+    {
+        int ch;
+        int sym_index;
+        sym_index = decode_symbol();
+        if ((sym_index == EOF_SYMBOL) || end_decoding)
+            break;
+        ch = index_to_char[sym_index];
+        out.put(ch);
+        update_tables(sym_index);
+    }
+    cout<<"Decoding is done"<<endl;
+
+}
+
 void Decode::decode(char *infile, char *outfile)
 {
 	in.open(infile, ios::binary | ios::in);
 	out.open(outfile, ios::binary | ios::out);
-	if (!in || !out)
-	{
-		cout<<"Error: Can`t open file"<<endl;
-		return;
-	}
-	load_first_value();
-	while (true)
-	{
-		int ch;
-		int sym_index;
-		sym_index = decode_symbol();
-		if ((sym_index == EOF_SYMBOL) || end_decoding)
-			break;
-		ch = index_to_char[sym_index];
-		out.put(ch);
-		update_tables(sym_index);
-	}
-	cout<<"Decoding is done"<<endl;
-	in.close();
-	out.close();
+
+    if (!in || !out)
+    {
+        cout<<"Error: Can`t open file"<<endl;
+        return;
+    }
+    decode_streams();
+    in.close();
+    out.close();
+
 }
 
 int Decode::decode_symbol(void)
@@ -55,7 +62,7 @@ int Decode::decode_symbol(void)
 	int symbol_index;
 
 	range = high - low;
-	cum = ((((value - low) + 1) * cum_freq[0] - 1) / range); // +- Нужно для то ли округления то ли преобразования, но иначе не работает
+	cum = ((((value - low) + 1) * cum_freq[0] - 1) / range); // +- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	for (symbol_index = 1; cum_freq[symbol_index] > cum; symbol_index++);
 	high = low + (range * cum_freq[symbol_index - 1]) / cum_freq[0];
 	low = low + (range * cum_freq[symbol_index]) / cum_freq[0];

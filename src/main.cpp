@@ -263,10 +263,80 @@ float some_fn (float arg1, float arg2) {
     return arg1 + arg2;
 }
 
+std::vector<int> read_vec_from_file(std::string filename) {
+    std::ifstream file;
+    file.open(filename, ios::binary | ios::in);
+    std::vector<int> vec;
+    int i;
+    while (true) {
+        auto val = file.get();
+        vec.push_back(val);
+        if (val==EOF){
+            break;
+        }
+    }
+    file.close();
+    return vec;
+}
+
+void write_vec_to_file(std::string filename, std::vector<int> vec) {
+    std::ofstream file;
+    file.open(filename, ios::binary | ios::out);
+    for (int i = 0; i < vec.size(); i++){
+        file.put(vec[i]);
+    }
+    file.close();
+}
+
 void test_fun(void){
     Encode obj;
-    obj.encode("test_file_input.txt", "test_file_output.bin.txt");
+
+    auto input_text_file = ifstream("test_file_input.txt");
+
+    //obj.encode("test_file_input.txt", "test_file_output.bin.txt");
+
+    // read data from file
+
+    auto input_stream = ifstream("test_file_input.txt");
+    std::vector<int> vector_from_text;
+    for (int i = 0;; i++){
+        int x = input_stream.get();
+        vector_from_text.push_back(x);
+        if (x == EOF){
+            break;
+        }
+    }
+    input_stream.close();
+    obj.in = my_ifstream(vector_from_text);
+    obj.out = my_ofstream("test_file_output.bin.txt");
+    obj.encode_streams();
+    obj.out.close();
+
+
+    Decode obj2;
+    //obj2.decode("test_file_output.bin.txt", "test_file_output.txt");
+    auto input_bin_file = ifstream();
+    input_bin_file.open("test_file_output.bin.txt", ios::binary | ios::in);
+
+
+    auto vec = read_vec_from_file("test_file_output.bin.txt");
+
+    std::cout << "vec size " << vec.size() << std::endl;
+    // print vector
+    for (int i = 0; i < vec.size(); i++){
+        std::cout << vec[i] << " ";
+    }
+
+    obj2.in = my_ifstream(vec);
+    obj2.out = my_ofstream();
+    obj2.decode_streams();
+
+    // write ofstream to file
+    std::cout << "print vector size " << obj2.out.storage.size() << std::endl;
+
+    write_vec_to_file("test_file_output.txt", obj2.out.storage);
 }
+
 
 PYBIND11_MODULE(cpp_string_lookup, m) {
     m.doc() = "pybind11 example plugin"; // optional module docstring
