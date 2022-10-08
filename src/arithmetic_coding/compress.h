@@ -29,6 +29,7 @@ public:
 	int char_to_index [NO_OF_CHARS];
 	int cum_freq [NO_OF_SYMBOLS + 1];
 	int freq [NO_OF_SYMBOLS + 1];
+    bool updating = true;
 
 	Compress(void);
 	~Compress(void);

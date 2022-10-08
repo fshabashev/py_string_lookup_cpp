@@ -23,6 +23,9 @@ Compress::~Compress(void)
 
 void Compress::update_tables(int sym_index)
 {
+  if (!updating)
+      return;
+
   int i;
   if (cum_freq[0] == MAX_FREQ)
   {

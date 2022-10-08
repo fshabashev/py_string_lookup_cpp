@@ -17,7 +17,6 @@ public:
     }
     void put(int c) {
         storage.push_back(c);
-        std::ofstream::put(c);
     }
 };
 

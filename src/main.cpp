@@ -288,53 +288,121 @@ void write_vec_to_file(std::string filename, std::vector<int> vec) {
     file.close();
 }
 
-void test_fun(void){
+void print_int_vector(std::vector<int> vec){
+    for (int i = 0; i < vec.size(); i++){
+        std::cout << vec[i] << std::endl;
+    }
+}
+
+void print_cum_frequency_table(int *arr){
+    for (int i = 0; i < NO_OF_SYMBOLS; i++){
+        std::cout << i << " " << arr[i] << std::endl;
+    }
+}
+
+class EncoderModel {
+public:
     Encode obj;
 
-    auto input_text_file = ifstream("test_file_input.txt");
+    EncoderModel(){}
+    
 
-    //obj.encode("test_file_input.txt", "test_file_output.bin.txt");
+    void train(std::vector<int> vector_from_text){
+        obj.in = my_ifstream(vector_from_text);
+        obj.out = my_ofstream();
+        obj.updating = true;
+        obj.encode_streams();
+        obj.out.storage.shrink_to_fit();
+    }
 
-    // read data from file
+    std::vector<int> encoding_fixed_freq(std::vector<int> vector_from_text){
+        obj.in = my_ifstream(vector_from_text);
+        obj.out = my_ofstream();
+        obj.updating = false;
+        obj.encode_streams();
+        obj.out.storage.shrink_to_fit();
+        return obj.out.storage;
+    }
 
-    auto input_stream = ifstream("test_file_input.txt");
-    std::vector<int> vector_from_text;
-    for (int i = 0;; i++){
-        int x = input_stream.get();
-        vector_from_text.push_back(x);
-        if (x == EOF){
-            break;
+    std::vector<int> get_encoded_vector(){
+        return obj.out.storage;
+    }
+};
+
+class DecoderModel {
+public:
+    Decode obj;
+    std::vector<int> decode_fixed_freq(std::vector<int> vector_from_text){
+        obj.in = my_ifstream(vector_from_text);
+        obj.out = my_ofstream();
+        obj.updating = false;
+        obj.decode_streams();
+        obj.out.storage.shrink_to_fit();
+        return obj.out.storage;
+    }
+    DecoderModel(EncoderModel &encoder){
+        for (int i = 0; i < NO_OF_SYMBOLS + 1; i++){
+            obj.cum_freq[i] = encoder.obj.cum_freq[i];
+        }
+        for (int i = 0; i < NO_OF_SYMBOLS + 1; i++){
+            obj.freq[i] = encoder.obj.freq[i];
+        }
+        for (int i = 0; i < NO_OF_SYMBOLS; i++){
+            obj.index_to_char[i] = encoder.obj.index_to_char[i];
+        }
+        for (int i = 0; i < NO_OF_CHARS; i++){
+            obj.char_to_index[i] = encoder.obj.char_to_index[i];
         }
     }
-    input_stream.close();
-    obj.in = my_ifstream(vector_from_text);
-    obj.out = my_ofstream("test_file_output.bin.txt");
-    obj.encode_streams();
-    obj.out.close();
+};
 
 
+std::vector<int> encode_decode_vector(std::vector<int> vector_from_text){
+
+    /*
+    EncoderModel model = EncoderModel();
+
+    //model.train(vector_from_text);
+
+    auto encoded_message = model.encoding_fixed_freq(vector_from_text);
+
+    std::cout << "size of storage " << model.obj.out.storage.size() << std::endl;
+
+    // print cum frequency tables
+    std::cout << "cum frequency table encoder" << std::endl;
+    print_cum_frequency_table(model.obj.cum_freq);
+    std::cout << "end cum frequency table encoder" << std::endl;
+
+    DecoderModel decoder_model = DecoderModel(model);
+
+    std::cout << "cum frequency table decoder"  << std::endl;
+    print_cum_frequency_table(decoder_model.obj.cum_freq);
+    std::cout << "end cum frequency table decoder" << std::endl;
+
+
+    // decode data
     Decode obj2;
-    //obj2.decode("test_file_output.bin.txt", "test_file_output.txt");
-    auto input_bin_file = ifstream();
-    input_bin_file.open("test_file_output.bin.txt", ios::binary | ios::in);
 
+//    obj2.in = my_ifstream(model.obj.out.storage);
+//    obj2.out = my_ofstream();
+//    obj2.decode_streams();
+//    obj2.out.storage.shrink_to_fit();
+    auto decoded_text = decoder_model.decode_fixed_freq(encoded_message);
+    return decoded_text;
+    */
 
-    auto vec = read_vec_from_file("test_file_output.bin.txt");
+    return std::vector<int>();
+    
+}
 
-    std::cout << "vec size " << vec.size() << std::endl;
-    // print vector
-    for (int i = 0; i < vec.size(); i++){
-        std::cout << vec[i] << " ";
-    }
+void test_fun(void){
+    // encode the data
 
-    obj2.in = my_ifstream(vec);
-    obj2.out = my_ofstream();
-    obj2.decode_streams();
+    auto vector_from_text = read_vec_from_file("test_file_input.txt");
 
-    // write ofstream to file
-    std::cout << "print vector size " << obj2.out.storage.size() << std::endl;
+    auto uncompressed_vector = encode_decode_vector(vector_from_text);
 
-    write_vec_to_file("test_file_output.txt", obj2.out.storage);
+    write_vec_to_file("test_file_output.txt", uncompressed_vector);
 }
 
 
@@ -361,4 +429,5 @@ PYBIND11_MODULE(cpp_string_lookup, m) {
         .def("printFreq", &CharFrequencyHolder::printFreq);
 
 }
+
 
