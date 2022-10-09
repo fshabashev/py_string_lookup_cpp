@@ -22,7 +22,7 @@
 using std::uint32_t;
 
 
-int main(int argc, char *argv[]) {
+int main7(int argc, char *argv[]) {
 	// Handle command line arguments
 	if (argc != 3) {
 		std::cerr << "Usage: " << argv[0] << " InputFile OutputFile" << std::endl;

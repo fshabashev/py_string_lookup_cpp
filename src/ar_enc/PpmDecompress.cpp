@@ -34,7 +34,7 @@ static void decompress(BitInputStream &in, std::ostream &out);
 static uint32_t decodeSymbol(ArithmeticDecoder &dec, PpmModel &model, const vector<uint32_t> &history);
 
 
-int main(int argc, char *argv[]) {
+int main5(int argc, char *argv[]) {
 	// Handle command line arguments
 	if (argc != 3) {
 		std::cerr << "Usage: " << argv[0] << " InputFile OutputFile" << std::endl;

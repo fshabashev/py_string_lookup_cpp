@@ -6,6 +6,16 @@
 #include "arithmetic_coding/encode.h"
 #include "arithmetic_coding/decode.h"
 
+#include <cstdint>
+#include <cstdlib>
+#include <fstream>
+#include <stdexcept>
+
+
+#include "ar_enc/ArithmeticCoder.hpp"
+#include "ar_enc/BitIoStream.hpp"
+#include "ar_enc/FrequencyTable.hpp"
+
 
 
 double pi_integral() {
@@ -299,7 +309,7 @@ void print_cum_frequency_table(int *arr){
         std::cout << i << " " << arr[i] << std::endl;
     }
 }
-
+/*
 class EncoderModel {
 public:
     Encode obj;
@@ -355,54 +365,75 @@ public:
         }
     }
 };
+*/
 
+int submain(int argc, char* argv[]){
+    // Handle command line arguments
+    if (argc != 3) {
+        std::cerr << "Usage: " << argv[0] << " InputFile OutputFile" << std::endl;
+        return EXIT_FAILURE;
+    }
+    const char *inputFile  = argv[1];
+    const char *outputFile = argv[2];
 
-std::vector<int> encode_decode_vector(std::vector<int> vector_from_text){
+    // Read input file once to compute symbol frequencies
+    std::ifstream in(inputFile, std::ios::binary);
+    SimpleFrequencyTable freqs(std::vector<uint32_t>(257, 0));
+    freqs.increment(256);  // EOF symbol gets a frequency of 1
+    while (true) {
+        int b = in.get();
+        if (b == EOF)
+            break;
+        if (b < 0 || b > 255)
+            throw std::logic_error("Assertion error");
+        freqs.increment(static_cast<uint32_t>(b));
+    }
 
-    /*
-    EncoderModel model = EncoderModel();
+    // Read input file again, compress with arithmetic coding, and write output file
+    in.clear();
+    in.seekg(0);
+    std::ofstream out(outputFile, std::ios::binary);
+    BitOutputStream bout(out);
+    try {
 
-    //model.train(vector_from_text);
+        // Write frequency table
+        for (uint32_t i = 0; i < 256; i++) {
+            uint32_t freq = freqs.get(i);
+            for (int j = 31; j >= 0; j--)
+                bout.write(static_cast<int>((freq >> j) & 1));  // Big endian
+        }
 
-    auto encoded_message = model.encoding_fixed_freq(vector_from_text);
+        ArithmeticEncoder enc(32, bout);
+        while (true) {
+            // Read and encode one byte
+            int symbol = in.get();
+            if (symbol == EOF)
+                break;
+            if (!(0 <= symbol && symbol <= 255))
+                throw std::logic_error("Assertion error");
+            enc.write(freqs, static_cast<uint32_t>(symbol));
+        }
 
-    std::cout << "size of storage " << model.obj.out.storage.size() << std::endl;
+        enc.write(freqs, 256);  // EOF
+        enc.finish();  // Flush remaining code bits
+        bout.finish();
+        return EXIT_SUCCESS;
 
-    // print cum frequency tables
-    std::cout << "cum frequency table encoder" << std::endl;
-    print_cum_frequency_table(model.obj.cum_freq);
-    std::cout << "end cum frequency table encoder" << std::endl;
-
-    DecoderModel decoder_model = DecoderModel(model);
-
-    std::cout << "cum frequency table decoder"  << std::endl;
-    print_cum_frequency_table(decoder_model.obj.cum_freq);
-    std::cout << "end cum frequency table decoder" << std::endl;
-
-
-    // decode data
-    Decode obj2;
-
-//    obj2.in = my_ifstream(model.obj.out.storage);
-//    obj2.out = my_ofstream();
-//    obj2.decode_streams();
-//    obj2.out.storage.shrink_to_fit();
-    auto decoded_text = decoder_model.decode_fixed_freq(encoded_message);
-    return decoded_text;
-    */
-
-    return std::vector<int>();
-    
+    } catch (const char *msg) {
+        std::cerr << msg << std::endl;
+        return EXIT_FAILURE;
+    }
 }
+
 
 void test_fun(void){
     // encode the data
 
-    auto vector_from_text = read_vec_from_file("test_file_input.txt");
+    //auto vector_from_text = read_vec_from_file("test_file_input.txt");
 
-    auto uncompressed_vector = encode_decode_vector(vector_from_text);
+    //auto uncompressed_vector = encode_decode_vector(vector_from_text);
 
-    write_vec_to_file("test_file_output.txt", uncompressed_vector);
+    //write_vec_to_file("test_file_output.txt", uncompressed_vector);
 }
 
 

@@ -23,6 +23,11 @@ public:
         index = 0;
     }
 
+    my_ifstream(const my_ifstream &other) {
+        this->storage = std::vector<int>();
+        index = 0;
+    }
+
     int get_old() {
         auto c = std::ifstream::get();
         return c;

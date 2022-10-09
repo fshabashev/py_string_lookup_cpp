@@ -35,7 +35,7 @@ static void compress(std::ifstream &in, BitOutputStream &out);
 static void encodeSymbol(PpmModel &model, const vector<uint32_t> &history, uint32_t symbol, ArithmeticEncoder &enc);
 
 
-int main(int argc, char *argv[]) {
+int main4(int argc, char *argv[]) {
 	// Handle command line arguments
 	if (argc != 3) {
 		std::cerr << "Usage: " << argv[0] << " InputFile OutputFile" << std::endl;
