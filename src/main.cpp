@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <stdexcept>
-
+#include <sstream>
 
 #include "ar_enc/ArithmeticCoder.hpp"
 #include "ar_enc/BitIoStream.hpp"
@@ -247,7 +247,7 @@ public:
     }
 };
 
-int main() {
+int main_old() {
     std::cout << "printing PI_   " << pi_integral() << std::endl;
     calculate_pi_bbp();
 
@@ -299,6 +299,7 @@ void write_vec_to_file(std::string filename, std::vector<int> vec) {
 }
 
 void print_int_vector(std::vector<int> vec){
+    std::cout << "vector size is " << vec.size() << std::endl;
     for (int i = 0; i < vec.size(); i++){
         std::cout << vec[i] << std::endl;
     }
@@ -309,114 +310,111 @@ void print_cum_frequency_table(int *arr){
         std::cout << i << " " << arr[i] << std::endl;
     }
 }
-/*
-class EncoderModel {
-public:
-    Encode obj;
 
-    EncoderModel(){}
-    
-
-    void train(std::vector<int> vector_from_text){
-        obj.in = my_ifstream(vector_from_text);
-        obj.out = my_ofstream();
-        obj.updating = true;
-        obj.encode_streams();
-        obj.out.storage.shrink_to_fit();
-    }
-
-    std::vector<int> encoding_fixed_freq(std::vector<int> vector_from_text){
-        obj.in = my_ifstream(vector_from_text);
-        obj.out = my_ofstream();
-        obj.updating = false;
-        obj.encode_streams();
-        obj.out.storage.shrink_to_fit();
-        return obj.out.storage;
-    }
-
-    std::vector<int> get_encoded_vector(){
-        return obj.out.storage;
-    }
-};
-
-class DecoderModel {
-public:
-    Decode obj;
-    std::vector<int> decode_fixed_freq(std::vector<int> vector_from_text){
-        obj.in = my_ifstream(vector_from_text);
-        obj.out = my_ofstream();
-        obj.updating = false;
-        obj.decode_streams();
-        obj.out.storage.shrink_to_fit();
-        return obj.out.storage;
-    }
-    DecoderModel(EncoderModel &encoder){
-        for (int i = 0; i < NO_OF_SYMBOLS + 1; i++){
-            obj.cum_freq[i] = encoder.obj.cum_freq[i];
-        }
-        for (int i = 0; i < NO_OF_SYMBOLS + 1; i++){
-            obj.freq[i] = encoder.obj.freq[i];
-        }
-        for (int i = 0; i < NO_OF_SYMBOLS; i++){
-            obj.index_to_char[i] = encoder.obj.index_to_char[i];
-        }
-        for (int i = 0; i < NO_OF_CHARS; i++){
-            obj.char_to_index[i] = encoder.obj.char_to_index[i];
-        }
-    }
-};
-*/
-
-int submain(int argc, char* argv[]){
-    // Handle command line arguments
-    if (argc != 3) {
-        std::cerr << "Usage: " << argv[0] << " InputFile OutputFile" << std::endl;
-        return EXIT_FAILURE;
-    }
-    const char *inputFile  = argv[1];
-    const char *outputFile = argv[2];
-
-    // Read input file once to compute symbol frequencies
-    std::ifstream in(inputFile, std::ios::binary);
+SimpleFrequencyTable calculate_freq(std::vector<int> vec){
     SimpleFrequencyTable freqs(std::vector<uint32_t>(257, 0));
     freqs.increment(256);  // EOF symbol gets a frequency of 1
-    while (true) {
-        int b = in.get();
-        if (b == EOF)
-            break;
-        if (b < 0 || b > 255)
-            throw std::logic_error("Assertion error");
+    for (int b: vec){
         freqs.increment(static_cast<uint32_t>(b));
     }
+    return freqs;
+}
 
-    // Read input file again, compress with arithmetic coding, and write output file
-    in.clear();
-    in.seekg(0);
-    std::ofstream out(outputFile, std::ios::binary);
+typedef std::pair<SimpleFrequencyTable, std::vector<int>> FreqTableAndVec;
+
+FreqTableAndVec calc_freqs_and_encode(std::vector<int> vec){
+    auto freqs = calculate_freq(vec);
+    // std::ofstream out(outputFile, std::ios::binary); // need to inherit and redefine put
+    std::stringstream out;
     BitOutputStream bout(out);
     try {
-
         // Write frequency table
+        /*
         for (uint32_t i = 0; i < 256; i++) {
             uint32_t freq = freqs.get(i);
             for (int j = 31; j >= 0; j--)
                 bout.write(static_cast<int>((freq >> j) & 1));  // Big endian
-        }
-
+        }*/
         ArithmeticEncoder enc(32, bout);
-        while (true) {
+        std::vector<int> message_to_encode;
+        for (int val: vec) {
             // Read and encode one byte
-            int symbol = in.get();
+            int symbol = val;
             if (symbol == EOF)
                 break;
             if (!(0 <= symbol && symbol <= 255))
                 throw std::logic_error("Assertion error");
+            message_to_encode.push_back(symbol);
+        }
+        // write encoded message to disk
+        for (int symbol : message_to_encode){
+            //std::cout << "symbol is " << symbol << std::endl;
             enc.write(freqs, static_cast<uint32_t>(symbol));
         }
 
         enc.write(freqs, 256);  // EOF
         enc.finish();  // Flush remaining code bits
         bout.finish();
+        // std::cout << "Encoded message: " << std::endl;
+        auto encoded_message = out.str();
+        // std::cout << "printing stringstream" << encoded_message << endl;
+        return FreqTableAndVec(freqs, std::vector<int>(encoded_message.begin(), encoded_message.end()));
+
+    } catch (const char *msg) {
+        std::cerr << msg << std::endl;
+        return FreqTableAndVec(freqs, std::vector<int>());
+    }
+}
+
+std::vector<char> decompress(SimpleFrequencyTable freqs, std::vector<int> encoded_message){
+    std::stringstream in(std::string(encoded_message.begin(), encoded_message.end()));
+    std::stringstream out;
+    BitInputStream bin(in);
+    ArithmeticDecoder dec(32, bin);
+    while (true) {
+        uint32_t symbol = dec.read(freqs);
+        if (symbol == 256)  // EOF symbol
+            break;
+        int b = static_cast<int>(symbol);
+        if (std::numeric_limits<char>::is_signed)
+            b -= (b >> 7) << 8;
+        out.put(static_cast<char>(b));
+    }
+    std::vector<char> decompressed_message;
+    for (auto elem : out.str()){
+        decompressed_message.push_back(static_cast<int>(elem));
+    }
+    return decompressed_message;
+}
+
+int submain(int argc, char* argv[]){
+    // Handle command line arguments
+    const char *inputFile  = argv[1];
+    // const char *outputFile = argv[2];
+
+    // Read input file once to compute symbol frequencies
+    std::ifstream in(inputFile, std::ios::binary);
+
+    std::vector<int> vec;
+    while (true) {
+        int b = in.get();
+        if (b == EOF)
+            break;
+        if (b < 0 || b > 255)
+            throw std::logic_error("Assertion error");
+        vec.push_back(b);
+    }
+
+    auto freqs = calculate_freq(vec);
+
+    try {
+        auto freq_and_encoding = calc_freqs_and_encode(vec);
+        auto decompressed_data = decompress(freq_and_encoding.first, freq_and_encoding.second);
+        // print decompressed data
+
+        for (int i = 0; i < decompressed_data.size(); i++){
+            std::cout << decompressed_data[i];
+        }
         return EXIT_SUCCESS;
 
     } catch (const char *msg) {
@@ -426,16 +424,14 @@ int submain(int argc, char* argv[]){
 }
 
 
-void test_fun(void){
-    // encode the data
-
-    //auto vector_from_text = read_vec_from_file("test_file_input.txt");
-
-    //auto uncompressed_vector = encode_decode_vector(vector_from_text);
-
-    //write_vec_to_file("test_file_output.txt", uncompressed_vector);
+void test_fun(void) {
+    submain(3, (char *[]){"./test", "test.txt", "test_out.txt"});
 }
 
+int main(int argc, char* argv[]) {
+    test_fun();
+    return 0;
+}
 
 PYBIND11_MODULE(cpp_string_lookup, m) {
     m.doc() = "pybind11 example plugin"; // optional module docstring
