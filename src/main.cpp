@@ -311,16 +311,24 @@ void print_cum_frequency_table(int *arr){
     }
 }
 
+const int NO_OF_SYMBOLS_IN_FREQ_TABLE = 256;
+
 SimpleFrequencyTable calculate_freq(std::vector<int> vec){
-    SimpleFrequencyTable freqs(std::vector<uint32_t>(257, 0));
+    // replace with the actual number of symbols in the input data
+    SimpleFrequencyTable freqs(std::vector<uint32_t>(NO_OF_SYMBOLS_IN_FREQ_TABLE + 1, 0));
     freqs.increment(256);  // EOF symbol gets a frequency of 1
     for (int b: vec){
         freqs.increment(static_cast<uint32_t>(b));
+
+        if (!(0 <= b && b <= NO_OF_SYMBOLS_IN_FREQ_TABLE))
+            throw std::logic_error("Error char isnt in the 0 to 255 range");
+
     }
     return freqs;
 }
 
 typedef std::pair<SimpleFrequencyTable, std::vector<int>> FreqTableAndVec;
+
 
 FreqTableAndVec calc_freqs_and_encode(std::vector<int> vec){
     auto freqs = calculate_freq(vec);
@@ -366,7 +374,7 @@ FreqTableAndVec calc_freqs_and_encode(std::vector<int> vec){
     }
 }
 
-std::vector<char> decompress(SimpleFrequencyTable freqs, std::vector<int> encoded_message){
+std::vector<int> decompress_encoded_message(SimpleFrequencyTable freqs, std::vector<int> encoded_message){
     std::stringstream in(std::string(encoded_message.begin(), encoded_message.end()));
     std::stringstream out;
     BitInputStream bin(in);
@@ -380,12 +388,52 @@ std::vector<char> decompress(SimpleFrequencyTable freqs, std::vector<int> encode
             b -= (b >> 7) << 8;
         out.put(static_cast<char>(b));
     }
-    std::vector<char> decompressed_message;
+    std::vector<int> decompressed_message;
     for (auto elem : out.str()){
         decompressed_message.push_back(static_cast<int>(elem));
     }
     return decompressed_message;
 }
+
+class SymbolMapper {
+public:
+    std::map<int, int> symbol_to_index;
+    std::map<int, int> index_to_symbol;
+
+    SymbolMapper(std::vector<int> vec){
+        std::set<int> unique_symbols;
+        for (int val: vec){
+            unique_symbols.insert(val);
+        }
+        int i = 0;
+        for (int val: unique_symbols){
+            symbol_to_index[val] = i;
+            index_to_symbol[i] = val;
+            i++;
+        }
+    }
+
+    std::vector<int> encode(std::vector<int> vec){
+        std::vector<int> encoded_vec;
+        for (int i = 0; i < vec.size(); i++){
+            encoded_vec.push_back(symbol_to_index[vec[i]]);
+        }
+        return encoded_vec;
+    }
+    std::vector<int> decode(std::vector<int> vec){
+        std::vector<int> decoded_vec;
+        for (int i = 0; i < vec.size(); i++){
+            decoded_vec.push_back(index_to_symbol[vec[i]]);
+        }
+        return decoded_vec;
+    }
+
+    int size(){
+        return symbol_to_index.size();
+    }
+};
+
+
 
 int submain(int argc, char* argv[]){
     // Handle command line arguments
@@ -409,7 +457,7 @@ int submain(int argc, char* argv[]){
 
     try {
         auto freq_and_encoding = calc_freqs_and_encode(vec);
-        auto decompressed_data = decompress(freq_and_encoding.first, freq_and_encoding.second);
+        auto decompressed_data = decompress_encoded_message(freq_and_encoding.first, freq_and_encoding.second);
         // print decompressed data
 
         for (int i = 0; i < decompressed_data.size(); i++){
@@ -424,14 +472,97 @@ int submain(int argc, char* argv[]){
 }
 
 
+std::vector<int> string2vec(std::string str){
+    std::vector<int> vec;
+    for (auto elem : str){
+        vec.push_back(static_cast<int>(elem));
+    }
+    return vec;
+}
+
+class EncodingModel{
+public:
+    SimpleFrequencyTable freqs;
+
+    EncodingModel(std::vector<int> vec): freqs(calculate_freq(vec)){}
+
+
+    void learn_freqs(std::vector<int> vec){
+        auto freq_and_enc = calc_freqs_and_encode(vec);
+        this->freqs = freq_and_enc.first;
+    }
+
+    void learn_freqs_str(std::string str){
+        std::vector<int> vec = string2vec(str);
+        this->learn_freqs(vec);
+    }
+
+    std::vector<int> string2vec(std::string str){
+        std::vector<int> vec;
+        for (auto elem : str){
+            vec.push_back(static_cast<int>(elem));
+        }
+        return vec;
+    }
+
+    std::vector<int> compress_vec(std::vector<int> vec){
+        auto freq_and_enc = calc_freqs_and_encode(vec);
+        return freq_and_enc.second;
+    }
+
+    std::vector<int> compress(std::string str){
+        return compress_vec(this->string2vec(str));
+    }
+
+    std::vector<int> decompress(std::vector<int> vec){
+        return decompress_encoded_message(this->freqs, vec);
+    }
+
+};
+
+
 void test_fun(void) {
-    submain(3, (char *[]){"./test", "test.txt", "test_out.txt"});
+    // submain(3, (char *[]){"./test", "test.txt", "test_out.txt"});
+
+    auto enc = EncodingModel(std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    auto str = "In 2015, ывафыавфыав bioinformatician asdfl;askjfdaslkjwqeioprjak;jsdfla;jkoiwqjrek;lasmdf laskdjfowiqjer;lkamsdfl;kjas;dlkfjsa;ldfj . But in general UTF16 includes surrogate pairs, so a unicode code point cannot be represented with a single wide character. You need wide string instead. Your problem is also partly to do with printing UTF16 character in Windows console. If you use MessageBoxW to view a wide string it will work as expected ";
+    // convert string to vector of ints
+    auto str_in_vector = string2vec(str);
+    // remap ints into the smaller range
+    auto mapper = SymbolMapper(str_in_vector);
+    auto encoded_str = mapper.encode(str_in_vector);
+    // learn the frequencies of the encoded string
+
+    std::cout << "string size = " << std::string(str).size() << std::endl;
+    // print string before encoding
+    std::cout << "string before encoding = " << std::endl;
+    for (int i = 0; i < str_in_vector.size(); i++){
+        std::cout << str_in_vector[i] << " ";
+    }
+    std::cout << "string after encoding = " << std::endl;
+    // print encoded string
+    for (int i = 0; i < encoded_str.size(); i++){
+        std::cout << encoded_str[i] << " ";
+    }
+
+    enc.learn_freqs(encoded_str);
+    auto compressed = enc.compress_vec(encoded_str);
+    std::cout << "size of compressed is " << compressed.size() << std::endl;
+    auto decompressed = enc.decompress(compressed);
+    // remap back to original ints
+    auto decoded_str = mapper.decode(decompressed);
+
+    std::cout << "decompressed is " << std::endl;
+    for (auto elem : decoded_str){
+        std::cout << static_cast<char> (elem);
+    }
 }
 
 int main(int argc, char* argv[]) {
     test_fun();
     return 0;
 }
+
 
 PYBIND11_MODULE(cpp_string_lookup, m) {
     m.doc() = "pybind11 example plugin"; // optional module docstring
@@ -454,6 +585,13 @@ PYBIND11_MODULE(cpp_string_lookup, m) {
         .def(py::init<>())
         .def("incrementFreq", &CharFrequencyHolder::incrementFreq)
         .def("printFreq", &CharFrequencyHolder::printFreq);
+    py::class_<EncodingModel>(m, "EncodingModel")
+        .def(py::init< std::vector<int> >())
+        .def("learn_freqs", &EncodingModel::learn_freqs)
+        .def("compress", &EncodingModel::compress)
+        .def("decompress", &EncodingModel::decompress);
+
+
 
 }
 
