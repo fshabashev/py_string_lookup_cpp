@@ -189,11 +189,11 @@ public:
         }
     }
 
-    void printFreq(){
-        for (auto it = freq_array.begin(); it != freq_array.end(); it++){
-            std::cout << it->first << " " << it->second << std::endl;
-        }
-    }
+//    void printFreq(){
+//        for (auto it = freq_array.begin(); it != freq_array.end(); it++){
+//            std::cout << it->first << " " << it->second << std::endl;
+//        }
+//    }
 };
 
 class StringFrequencyHolder {
@@ -460,9 +460,9 @@ int submain(int argc, char* argv[]){
         auto decompressed_data = decompress_encoded_message(freq_and_encoding.first, freq_and_encoding.second);
         // print decompressed data
 
-        for (int i = 0; i < decompressed_data.size(); i++){
-            std::cout << decompressed_data[i];
-        }
+//        for (int i = 0; i < decompressed_data.size(); i++){
+//            std::cout << decompressed_data[i];
+//        }
         return EXIT_SUCCESS;
 
     } catch (const char *msg) {
@@ -519,13 +519,46 @@ public:
     }
 
 };
+void test_speed_vec(void) {
+    for (int i = 0; i < 100; i++) {
+        std::vector<int> vec;
+        for (int j = 0; j < 1000000; j++) {
+            vec.push_back(42);
+        }
+    }
+}
 
+class Compressor{
+public:
+    EncodingModel enc_model;
+    SymbolMapper sym_mapper;
+    Compressor(std::vector<int> vec): sym_mapper(vec), enc_model(std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}){
+        auto encoded_vec = this->sym_mapper.encode(vec);
+        this->enc_model.learn_freqs(encoded_vec);
+    }
+    Compressor(std::string str): Compressor(string2vec(str)){}
+    std::vector<int> compress(std::string str){
+        auto encoded_vec = sym_mapper.encode(this->enc_model.string2vec(str));
+        auto compressed_vec = this->enc_model.compress_vec(encoded_vec);
+        return compressed_vec;
+    }
+    std::string decompress(std::vector<int> vec){
+        auto decompressed_vec = this->enc_model.decompress(vec);
+        auto decoded_vec = sym_mapper.decode(decompressed_vec);
+        std::string str;
+        for (auto elem : decoded_vec){
+            str += static_cast<char>(elem);
+        }
+        return str;
+    }
+};
 
 void test_fun(void) {
     // submain(3, (char *[]){"./test", "test.txt", "test_out.txt"});
 
     auto enc = EncodingModel(std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-    auto str = "In 2015, ывафыавфыав bioinformatician asdfl;askjfdaslkjwqeioprjak;jsdfla;jkoiwqjrek;lasmdf laskdjfowiqjer;lkamsdfl;kjas;dlkfjsa;ldfj . But in general UTF16 includes surrogate pairs, so a unicode code point cannot be represented with a single wide character. You need wide string instead. Your problem is also partly to do with printing UTF16 character in Windows console. If you use MessageBoxW to view a wide string it will work as expected ";
+    // auto str = "In 2015, ывафыавфыав bioinformatician asdfl;askjfdaslkjwqeioprjak;jsdfla;jkoiwqjrek;lasmdf laskdjfowiqjer;lkamsdfl;kjas;dlkfjsa;ldfj . But in general UTF16 includes surrogate pairs, so a unicode code point cannot be represented with a single wide character. You need wide string instead. Your problem is also partly to do with printing UTF16 character in Windows console. If you use MessageBoxW to view a wide string it will work as expected ";
+    auto str = "1234567890asdfasfфвавыфафы";
     // convert string to vector of ints
     auto str_in_vector = string2vec(str);
     // remap ints into the smaller range
@@ -533,33 +566,49 @@ void test_fun(void) {
     auto encoded_str = mapper.encode(str_in_vector);
     // learn the frequencies of the encoded string
 
-    std::cout << "string size = " << std::string(str).size() << std::endl;
+    //std::cout << "string size = " << std::string(str).size() << std::endl;
     // print string before encoding
-    std::cout << "string before encoding = " << std::endl;
-    for (int i = 0; i < str_in_vector.size(); i++){
-        std::cout << str_in_vector[i] << " ";
-    }
-    std::cout << "string after encoding = " << std::endl;
+    //std::cout << "string before encoding = " << std::endl;
+//    for (int i = 0; i < str_in_vector.size(); i++){
+//        std::cout << str_in_vector[i] << " ";
+//    }
+    //std::cout << "string after encoding = " << std::endl;
     // print encoded string
+    /*
     for (int i = 0; i < encoded_str.size(); i++){
         std::cout << encoded_str[i] << " ";
     }
-
+    */
     enc.learn_freqs(encoded_str);
     auto compressed = enc.compress_vec(encoded_str);
-    std::cout << "size of compressed is " << compressed.size() << std::endl;
+    //std::cout << "size of compressed is " << compressed.size() << std::endl;
     auto decompressed = enc.decompress(compressed);
     // remap back to original ints
     auto decoded_str = mapper.decode(decompressed);
 
-    std::cout << "decompressed is " << std::endl;
+    //std::cout << "decompressed is " << std::endl;
+
     for (auto elem : decoded_str){
         std::cout << static_cast<char> (elem);
     }
 }
 
+void test_fun2(void){
+    auto str = "1234567890фывафыва";
+    auto comp = Compressor(string2vec(str));
+    auto compressed = comp.compress(str);
+    auto decompressed = comp.decompress(compressed);
+    std::cout << decompressed << std::endl;
+}
+
 int main(int argc, char* argv[]) {
-    test_fun();
+    // run test_fun and measure time
+    auto start = std::chrono::high_resolution_clock::now();
+    test_fun2();
+    //test_speed_vec();
+    auto finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = finish - start;
+    std::cout << "Elapsed time: " << elapsed.count() ;
     return 0;
 }
 
@@ -583,16 +632,17 @@ PYBIND11_MODULE(cpp_string_lookup, m) {
         .def("clean", &StringAccumulator::clean);
     py::class_<CharFrequencyHolder>(m, "CharFrequencyHolder")
         .def(py::init<>())
-        .def("incrementFreq", &CharFrequencyHolder::incrementFreq)
-        .def("printFreq", &CharFrequencyHolder::printFreq);
+        .def("incrementFreq", &CharFrequencyHolder::incrementFreq);
     py::class_<EncodingModel>(m, "EncodingModel")
         .def(py::init< std::vector<int> >())
         .def("learn_freqs", &EncodingModel::learn_freqs)
         .def("compress", &EncodingModel::compress)
         .def("decompress", &EncodingModel::decompress);
-
-
-
+    py::class_<Compressor>(m, "Compressor")
+        .def(py::init< std::vector<int> >())
+        .def(py::init< std::string >())
+        .def("compress", &Compressor::compress)
+        .def("decompress", &Compressor::decompress);
 }
 
 
